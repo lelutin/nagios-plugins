@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# Compare installed files to hashes in their .deb package.
+# Needs one or more package names as arguments
+#
+# License: BSD
+
+if [ "$#" -lt 1 ]; then
+    echo DEBSUMS UNKNOWN: No package name specified
+    exit 3
+fi
+
+if [ ! -x /usr/bin/debsums ]; then
+    echo DEBSUMS UNKNOWN: debsums executable not found
+    exit 3
+fi
+
+tmp=$(debsums $* 2>/dev/null)
+
+if [ "$?" = "1" ]; then
+    echo DEBSUMS UNKNOWN: One or more specified packages not installed
+    exit 3
+fi
+
+output=$(printf "%s" "$tmp" | grep FAILED | awk '{ print $1; }')
+
+if [ ! -z "$output" ]; then
+	echo DEBSUMS CRITICAL: failed checksum for $output
+	exit 1
+fi
+
+echo DEBSUMS OK: $* passed
+exit 0

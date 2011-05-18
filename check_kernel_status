@@ -1,0 +1,130 @@
+#!/usr/bin/perl
+# check_kernel_status : check if the running kernel is the latest installed
+# By Toni Van Remortel [toni.van.remortel@p-ops.be]
+# 2008-07-28
+# GPLv2
+#
+# Gabriel Filion:
+#   Added updated version regexes to reflet the current way kernel version are tagged
+#
+# Original script can be found at:
+# http://exchange.nagios.org/directory/Plugins/Uncategorized/Operating-Systems/Linux/Running-kernel-compared-to-installed-kernel-version-%252D-updated!/details
+
+$OK = 0;
+$WARN = 1;
+$CRIT = 2;
+$UNKN = 3;
+
+# First, find the current running kernel version
+if ( -e '/proc/version_signature' )
+{
+	# Likely Ubuntu
+	$sig = `cat /proc/version_signature`;
+	if ( $sig =~ /.* (\d+)\.(\d+)\.(\d+)-(\d+)\.(\d+)-[generic|server]/ )
+	{
+		@running_version = ($1, $2, $3, $4, $5);
+	}
+	else
+	{
+		print "UNKNOWN - Cannot find running Ubuntu kernel version\n";
+		exit $UNKN;
+	}
+}
+elsif ( -e '/proc/version' )
+{
+	# Likely Debian
+	$sig = `cat /proc/version`;
+	if ( $sig =~ /\(Debian (\d+)\.(\d+)\.(\d+)\.dfsg\.(\d+)-(\d+)\)/
+	     || $sig =~ /\(Debian (\d+)\.(\d+)\.(\d+)\.dfsg\.(\d+)-(\d+)\w+(\d+)\)/
+	     || $sig =~ /\(Debian (\d+)\.(\d+)\.(\d+)-(\d+).+?(\d+).+?(\d+)\)/
+	     || $sig =~ /\(Debian (\d+)\.(\d+)\.(\d+)-(\d+)lenny(\d+)\)/
+	   )
+	{
+		@running_version = ($1, $2, $3, $4, $5, $6);
+	}
+	else
+	{
+		print "UNKNOWN - Cannot find running Debian kernel version\n";
+		exit $UNKN;
+	}
+}
+else
+{
+	print "UNKNOWN - Cannot extract running kernel info\n";
+	exit $UNKN;
+}
+
+# Next, find the installed kernel version
+# Yes, as you can see, it is limited to 2.6 kernels here.
+# But I assume that you don't need reboots anymore when this major version has passed.
+$dpkg_list = `dpkg -l | grep linux-image-2.6`;
+chomp($dpkg_list);
+@dpkg_lines = split("\n", $dpkg_list);
+$dpkg = pop(@dpkg_lines);
+
+# Now, which OS is it, and which footprint do they use?
+if ( $dpkg =~ /(\d+)\.(\d+)\.(\d+)-(\d+)\.(\d+)/ )
+{
+	# Ubuntu
+	@installed_version = ($1, $2, $3, $4, $5, 0);
+}
+elsif ( $dpkg =~ /(\d+)\.(\d+)\.(\d+)\.dfsg\.(\d+)-(\d+)\w+(\d+)/ )
+{
+	# Debian Etch and older
+	@installed_version = ($1, $2, $3, $4, $5, $6);
+}
+elsif ( $dpkg =~ /(\d+)\.(\d+)\.(\d+)\.dfsg\.(\d+)-(\d+) / )
+{
+	# Debian Etch and older
+	@installed_version = ($1, $2, $3, $4, $5, 0);
+}
+elsif ( $dpkg =~ /(\d+)\.(\d+)\.(\d+)-(\d+)\~.+?(\d+).+?(\d+)/ )
+{
+	# Debian Etch and older
+	@installed_version = ($1, $2, $3, $4, $5, $6);
+}
+#elsif ( $dpkg =~ /Debian (\d+)\.(\d+)\.(\d+)\+(\d+)\+lenny(\d+)/ )
+elsif ( $dpkg =~ /(\d+)\.(\d+)\.(\d+)\+(\d+)\+lenny(\d+)/ )
+{
+	# Debian Lenny
+	@installed_version = ($1, $2, $3, $4, $5, 0);
+}
+elsif ( $dpkg =~ /(\d+)\.(\d+)\.(\d+)-(\d+)lenny(\d+)/ )
+{
+	# Debian Lenny
+	@installed_version = ($1, $2, $3, $4, $5, 0);
+}
+elsif ( $dpkg =~ / (\d+)\.(\d+)\.(\d+)-(\d+) / )
+{
+        # Debian Squeeze, possibly Xen
+        @installed_version = ($1, $2, $3, $4, 0, 0);
+}
+elsif ( $dpkg =~ / (\d+)\.(\d+)\.(\d+)\+(\d+) / )
+{
+        # Debian Squeeze
+        @installed_version = ($1, $2, $3, $4, 0, 0);
+}
+else
+{
+	print "UNKNOWN - Could not determine installed version.\n";
+	exit $UNKN;
+}
+
+# Calculate sums for easy comparison
+$running_version_sum = sprintf("%02d%02d%02d%02d%02d%02d", @running_version);
+$installed_version_sum = sprintf("%02d%02d%02d%02d%02d%02d", @installed_version);
+# And some readable format
+$print_running_version = sprintf("%d.%d.%d-%d.%d.%d", @running_version);
+$print_installed_version = sprintf("%d.%d.%d-%d.%d.%d", @installed_version);
+
+# Do we need a reboot?
+if ( $running_version_sum < $installed_version_sum )
+{
+	print "WARNING - Reboot required : running kernel = $print_running_version, installed kernel = $print_installed_version\n";
+	exit $WARN;
+}
+else
+{
+	print "OK - running kernel = $print_running_version, installed kernel = $print_installed_version\n";
+	exit $OK;
+}

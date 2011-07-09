@@ -99,10 +99,10 @@ elsif ( $dpkg =~ / (\d+)\.(\d+)\.(\d+)-(\d+) / )
         # Debian Squeeze, possibly Xen
         @installed_version = ($1, $2, $3, $4, 0, 0);
 }
-elsif ( $dpkg =~ / (\d+)\.(\d+)\.(\d+)\+(\d+) / )
+elsif ( $dpkg =~ /(\d+)\.(\d+)\.(\d+)-(\d+)squeeze(\d+)/ )
 {
         # Debian Squeeze
-        @installed_version = ($1, $2, $3, $4, 0, 0);
+        @installed_version = ($1, $2, $3, $4, $5, 0);
 }
 else
 {

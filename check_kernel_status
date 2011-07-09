@@ -5,7 +5,7 @@
 # GPLv2
 #
 # Gabriel Filion:
-#   Added updated version regexes to reflet the current way kernel version are tagged
+#   Added updated version regexes to reflect the current way kernel versions are tagged
 #
 # Original script can be found at:
 # http://exchange.nagios.org/directory/Plugins/Uncategorized/Operating-Systems/Linux/Running-kernel-compared-to-installed-kernel-version-%252D-updated!/details

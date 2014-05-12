@@ -3,6 +3,9 @@
 # Nagios plugin that checks whether a key ID has expired, or will expire within
 # a certain time.
 #
+# note: the plugin will issue a critical state if the required key has been
+# revoked.
+#
 # usage: check_gpg [-w <num_days>] <key_id>
 #
 # <key_id> is any PGP key ID that GnuPG accepts with "gpg --list-key <key_id>"
@@ -57,11 +60,15 @@ key="$1"
 
 # GPG is too stupid to error out when asked to refresh a key that's not in the
 # local keyring so we need to perform another call to verify this first.
-# FIXME: check whether key is revoked!
 output=$( { gpg --list-key "$key" >/dev/null && gpg --refresh "$key" >/dev/null; } 2>&1 )
 if [ $? -ne 0 ]; then
     echo "UNKNOWN: $output"
     exit 3
+fi
+
+if [ "$(gpg --check-sig "$key" | grep "^rev!")" != "" ]; then
+    echo "CRITICAL: key '$key' has been revoked!"
+    exit 1
 fi
 
 for expiry in $(gpg --with-colons --fixed-list-mode --list-key "$key" 2>/dev/null | awk -F: '/^pub:/{ print $7 }');

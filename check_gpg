@@ -39,7 +39,7 @@ debug "current timestamp: $now"
 
 warning_threshold=
 if [ -n "$1" ] && [ "$1" = "-w" ]; then
-    if [ -z "$1" ]; then
+    if [ -z "$2" ]; then
         echo "UNKNOWN: argument -w got no value. integer needed"
         exit 3
     fi

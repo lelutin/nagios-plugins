@@ -16,6 +16,10 @@
 #
 # num_days must be an integer value
 #
+# optionally, if the keyring directory you want GPG to use is not located in
+# the user's ~/.gnupg, you can specify the path to the keyring directory with
+# the --gnupg-homedir parameter.
+#
 # Thanks a bunch to Daniel Kahn Gillmor for providing example commands that
 # made up most of the core of this plugin.
 #

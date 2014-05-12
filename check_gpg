@@ -6,7 +6,7 @@
 # note: the plugin will issue a critical state if the required key has been
 # revoked.
 #
-# usage: check_gpg [-w <num_days>] <key_id>
+# usage: check_gpg [-w <num_days>] [--gnupg-homedir <path>] <key_id>
 #
 # <key_id> is any PGP key ID that GnuPG accepts with "gpg --list-key <key_id>"
 #
@@ -38,19 +38,39 @@ now=$(date +%s)
 debug "current timestamp: $now"
 
 warning_threshold=
-if [ -n "$1" ] && [ "$1" = "-w" ]; then
-    if [ -z "$2" ]; then
-        echo "UNKNOWN: argument -w got no value. integer needed"
-        exit 3
-    fi
-    if [ "`echo $2 | egrep ^[[:digit:]]+$`" = "" ]; then
-        echo "UNKNOWN: invalid value '$2' passed to -w. integer needed"
-        exit 3
-    fi
-    warning_threshold=$(( $now + ($2*$SECS_IN_DAY) ))
+homedir=
+for arg in $*; do
+    case $arg in
+        "-w")
+            if [ -z "$2" ]; then
+                echo "UNKNOWN: argument -w got no value. integer needed"
+                exit 3
+            fi
+            if [ "`echo $2 | egrep ^[[:digit:]]+$`" = "" ]; then
+                echo "UNKNOWN: invalid value '$2' passed to -w. integer needed"
+                exit 3
+            fi
+            warning_threshold=$(( $now + ($2*$SECS_IN_DAY) ))
+            debug "setting warning_threshold to '$warning_threshold'"
 
-    shift 2
-fi
+            shift 2
+        ;;
+        "--gnupg-homedir")
+            if [ -z "$2" ]; then
+                echo "UNKNOWN: argument --gnupg-homedir got no value. path needed"
+                exit 3
+            fi
+            if [ ! -d "$2" ]; then
+                echo "UNKNOWN: homedir '$2' does not exist or is not a directory"
+                exit 3
+            fi
+            homedir="--homedir $2"
+            debug "setting homedir to '$homedir'"
+
+            shift 2
+        ;;
+    esac
+done
 
 if [ -z "$1" ]; then
     echo "UNKNOWN: must provide a key ID"
@@ -60,18 +80,18 @@ key="$1"
 
 # GPG is too stupid to error out when asked to refresh a key that's not in the
 # local keyring so we need to perform another call to verify this first.
-output=$( { gpg --list-key "$key" >/dev/null && gpg --refresh "$key" >/dev/null; } 2>&1 )
+output=$( { gpg $homedir --list-key "$key" >/dev/null && gpg $homedir --refresh "$key" >/dev/null; } 2>&1 )
 if [ $? -ne 0 ]; then
     echo "UNKNOWN: $output"
     exit 3
 fi
 
-if [ "$(gpg --check-sig "$key" | grep "^rev!")" != "" ]; then
+if [ "$(gpg $homedir --check-sig "$key" | grep "^rev!")" != "" ]; then
     echo "CRITICAL: key '$key' has been revoked!"
     exit 1
 fi
 
-for expiry in $(gpg --with-colons --fixed-list-mode --list-key "$key" 2>/dev/null | awk -F: '/^pub:/{ print $7 }');
+for expiry in $(gpg $homedir --with-colons --fixed-list-mode --list-key "$key" 2>/dev/null | awk -F: '/^pub:/{ print $7 }');
 do
     debug "expiry value: $expiry"
 

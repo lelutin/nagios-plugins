@@ -1,0 +1,82 @@
+#!/bin/bash
+#
+# Nagios plugin that checks whether a key ID has expired, or will expire within
+# a certain time.
+#
+# usage: check_gpg [-w <num_days>] <key_id>
+#
+# <key_id> is any PGP key ID that GnuPG accepts with "gpg --list-key <key_id>"
+#
+# The option -w parameter lets you specify the number of days within which key
+# expiry will trigger a warning. e.g. if <key_id> expires within <num_days>
+# days, make nagios issue a warning.
+#
+# num_days must be an integer value
+#
+# Thanks a bunch to Daniel Kahn Gillmor for providing example commands that
+# made up most of the core of this plugin.
+#
+# Copyleft Gabriel Filion
+#
+# This plugin is released under the GPL v3+ license. To get a copy of the
+# license text visit: https://www.gnu.org/licenses/gpl-3.0.txt
+#
+SECS_IN_DAY=86400
+
+function debug () {
+  if [ -n "$DEBUG" ]; then
+      echo "$1" >&2
+  fi
+}
+
+debug "got args: $*"
+
+now=$(date +%s)
+debug "current timestamp: $now"
+
+warning_threshold=
+if [ -n "$1" ] && [ "$1" = "-w" ]; then
+    if [ -z "$1" ]; then
+        echo "UNKNOWN: argument -w got no value. integer needed"
+        exit 3
+    fi
+    if [ "`echo $2 | egrep ^[[:digit:]]+$`" = "" ]; then
+        echo "UNKNOWN: invalid value '$2' passed to -w. integer needed"
+        exit 3
+    fi
+    warning_threshold=$(( $now + ($2*$SECS_IN_DAY) ))
+
+    shift 2
+fi
+
+if [ -z "$1" ]; then
+    echo "UNKNOWN: must provide a key ID"
+    exit 3
+fi
+key="$1"
+
+# GPG is too stupid to error out when asked to refresh a key that's not in the
+# local keyring so we need to perform another call to verify this first.
+# FIXME: check whether key is revoked!
+output=$( { gpg --list-key "$key" >/dev/null && gpg --refresh "$key" >/dev/null; } 2>&1 )
+if [ $? -ne 0 ]; then
+    echo "UNKNOWN: $output"
+    exit 3
+fi
+
+for expiry in $(gpg --with-colons --fixed-list-mode --list-key "$key" 2>/dev/null | awk -F: '/^pub:/{ print $7 }');
+do
+    debug "expiry value: $expiry"
+
+    if [ "$now" -gt "$expiry" ] ; then
+        printf "CRITICAL: %s has expired on %s\n" "$key" "$(date -d "$expiry seconds")";
+        exit 1;
+    fi;
+    if [ -n "$warning_threshold" ] && [ "$warning_threshold" -gt "$expiry" ]; then
+        remaining=$(( ($expiry-$now) / $SECS_IN_DAY ))
+        printf "WARNING: %s expires in %s days\n" "$key" "$remaining";
+        exit 2;
+    fi
+done
+
+echo "OK: key '$key' has not expired."

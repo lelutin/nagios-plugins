@@ -1,0 +1,80 @@
+#!/bin/sh
+#
+# This script connects to an SFTP account that should be chrooted to its home
+# directory and tries to access files outside of it. It fails if it can access
+# outside files, and succeeds if it cannot.
+#
+# This script assumes you have setup a passwordless SSH key to the host given
+# to -H
+
+file=/etc/passwd
+host=
+username=
+
+debug () {
+  if [ -n "$DEBUG" ]; then
+      echo "$1" >&2
+  fi
+}
+
+debug "got args: $*"
+
+for arg in $*; do
+    case $arg in
+        "-H")
+            if [ -z "$2" ]; then
+                echo "UNKNOWN: no value given to argument -H."
+                exit 3
+            fi
+            debug "Setting \$host to: $2"
+            host=$2
+            shift 2
+            ;;
+        "--user-name")
+            if [ -z "$2" ]; then
+                echo "UNKNOWN: no value given to argument --user-name."
+                exit 3
+            fi
+            debug "Setting \$username to: $2"
+            username=$2
+            shift 2
+            ;;
+        "--file-name")
+            if [ -z "$2" ]; then
+                echo "UNKNOWN: no value given to argument --file-name."
+                exit 3
+            fi
+            debug "Setting \$file to: $2"
+            file=$2
+            shift 2
+            ;;
+    esac
+done
+
+if [ -z "$host" ]; then
+    echo "UNKNOWN: no host specified. Use -H"
+    exit 3
+fi
+if [ -z "$username" ]; then
+    echo "UNKNOWN: no user name specified. Use --user-name"
+    exit 3
+fi
+if [ -z "$file" ]; then
+    echo "UNKNOWN: no file name specified. check value passed to --file-name"
+    exit 3
+fi
+
+output=$(sftp -q -o "PasswordAuthentication no" $username@$host:"$file" /dev/null 2>&1)
+if [ $? -eq 0 ]; then
+    echo "CRITICAL: file $file is currently visible!"
+    exit 1
+fi
+
+if [ $(printf "%s" "$output" | grep "File \"$file\" not found." | wc -l) -eq 0 ]; then
+    echo "UNKNOWN: Connection failure: $output"
+    exit 3
+fi
+
+echo "OK: File '$file' not found."
+exit 0
+

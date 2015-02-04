@@ -3,7 +3,11 @@
 # Compare installed files to hashes in their .deb package.
 # Needs one or more package names as arguments
 #
-# License: BSD
+# Copyleft Gabriel Filion
+#
+# This plugin is released under the GPL v3+ license. To get a copy of the
+# license text visit: https://www.gnu.org/licenses/gpl-3.0.txt
+#
 
 if [ "$#" -lt 1 ]; then
     echo DEBSUMS UNKNOWN: No package name specified

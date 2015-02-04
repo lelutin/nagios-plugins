@@ -6,6 +6,12 @@
 #
 # This script assumes you have setup a passwordless SSH key to the host given
 # to -H
+#
+# Copyleft Gabriel Filion
+#
+# This plugin is released under the GPL v3+ license. To get a copy of the
+# license text visit: https://www.gnu.org/licenses/gpl-3.0.txt
+#
 
 file=/etc/passwd
 host=

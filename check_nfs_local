@@ -9,6 +9,11 @@
 # rpc connections from your nagios servers to the NFS server the current check
 # should help out monitoring at least if services are supposed to be running.
 #
+# Copyleft Gabriel Filion
+#
+# This plugin is released under the GPL v3+ license. To get a copy of the
+# license text visit: https://www.gnu.org/licenses/gpl-3.0.txt
+#
 
 STATE_OK=0
 STATE_WARNING=1

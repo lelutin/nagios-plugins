@@ -4,6 +4,11 @@
 #
 # To use a warning instead of a critical status when file is absent, use -w
 #
+# Copyleft Gabriel Filion
+#
+# This plugin is released under the GPL v3+ license. To get a copy of the
+# license text visit: https://www.gnu.org/licenses/gpl-3.0.txt
+#
 
 NOTIFY_FILE=/var/run/reboot-required
 

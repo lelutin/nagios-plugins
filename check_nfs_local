@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Verify that services needed for NFS to work are correctly running
+# This is a debian-specific check since it uses exit codes from service init scripts.
+#
+# Note: this is not the panacea of all NFS checks. The real deal should be to
+# actually open rpc connections from another server and verify that nfs is
+# working correctly. However, because of some limitations if you can't open up
+# rpc connections from your nagios servers to the NFS server the current check
+# should help out monitoring at least if services are supposed to be running.
+#
+
+STATE_OK=0
+STATE_WARNING=1
+STATE_CRITICAL=2
+STATE_UNKNOWN=3
+STATE_DEPENDENT=4
+
+check_service() {
+	service $1 status >/dev/null
+	if [ "$?" -ne 0 ]; then
+		echo "CRITICAL: service $1 not running correctly!"
+		exit $STATE_CRITICAL
+	fi
+}
+
+check_service rpcbind
+# nfs-common manages multiple services, but status should be a good indicator
+# of whether something is amiss. if in doubt with a critical status with
+# regards to nfs-common, just run "service nfs-common restart"
+check_service nfs-common
+check_service nfs-kernel-server
+
+echo "OK: all services running"
+exit $STATE_OK
+

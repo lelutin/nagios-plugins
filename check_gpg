@@ -92,21 +92,21 @@ fi
 
 if [ "$(gpg $homedir --check-sig "$key" | grep "^rev!")" != "" ]; then
     echo "CRITICAL: key '$key' has been revoked!"
-    exit 1
+    exit 2
 fi
 
 for expiry in $(gpg $homedir --with-colons --fixed-list-mode --list-key "$key" 2>/dev/null | awk -F: '/^pub:/{ print $7 }');
 do
     debug "expiry value: $expiry"
 
-    if [ "$now" -gt "$expiry" ] ; then
-        printf "CRITICAL: %s has expired on %s\n" "$key" "$(date -d "$expiry seconds")";
-        exit 1;
+    if [ "$now" -gt "$expiry" ]; then
+        printf "CRITICAL: %s has expired on %s\n" "$key" "$(date -d "$expiry seconds")"
+        exit 2
     fi;
     if [ -n "$warning_threshold" ] && [ "$warning_threshold" -gt "$expiry" ]; then
         remaining=$(( ($expiry-$now) / $SECS_IN_DAY ))
-        printf "WARNING: %s expires in %s days\n" "$key" "$remaining";
-        exit 2;
+        printf "WARNING: %s expires in %s days\n" "$key" "$remaining"
+        exit 1
     fi
 done
 

@@ -6,7 +6,7 @@
 # note: the plugin will issue a critical state if the required key has been
 # revoked.
 #
-# usage: check_gpg [-w <num_days>] [--gnupg-homedir <path>] <key_id>
+# usage: check_gpg [--no-refresh] [-w <num_days>] [--gnupg-homedir <path>] <key_id>
 #
 # <key_id> is any PGP key ID that GnuPG accepts with "gpg --list-key <key_id>"
 #
@@ -18,7 +18,8 @@
 #
 # optionally, if the keyring directory you want GPG to use is not located in
 # the user's ~/.gnupg, you can specify the path to the keyring directory with
-# the --gnupg-homedir parameter.
+# the --gnupg-homedir parameter. With the parameter --no-refresh you can disable
+# refreshing key from keyservers and just validate local keyring.
 #
 # Thanks a bunch to Daniel Kahn Gillmor for providing example commands that
 # made up most of the core of this plugin.
@@ -49,6 +50,7 @@ debug "current timestamp: $now"
 
 warning_threshold=
 homedir=
+refresh=1
 for arg in $*; do
     case $arg in
         "-w")
@@ -64,6 +66,10 @@ for arg in $*; do
             debug "setting warning_threshold to '$warning_threshold'"
 
             shift 2
+        ;;
+        "--no-refresh")
+            refresh=0
+            shift 1
         ;;
         "--gnupg-homedir")
             if [ -z "$2" ]; then
@@ -88,12 +94,15 @@ if [ -z "$1" ]; then
 fi
 key="$1"
 
-# GPG is too stupid to error out when asked to refresh a key that's not in the
-# local keyring so we need to perform another call to verify this first.
-output=$( { gpg $homedir --list-key "$key" >/dev/null && gpg $homedir --refresh "$key" >/dev/null; } 2>&1 )
-if [ $? -ne 0 ]; then
-    echo "UNKNOWN: $output"
-    exit $STATE_UNKNOWN
+# Refresh key if not disabled
+if [ $refresh -eq 1 ]; then
+    # GPG is too stupid to error out when asked to refresh a key that's not in the
+    # local keyring so we need to perform another call to verify this first.
+    output=$( { gpg $homedir --list-key "$key" >/dev/null && gpg $homedir --refresh "$key" >/dev/null; } 2>&1 )
+    if [ $? -ne 0 ]; then
+        echo "UNKNOWN: $output"
+        exit $STATE_UNKNOWN
+    fi
 fi
 
 if [ "$(gpg $homedir --check-sig "$key" | grep "^rev!")" != "" ]; then

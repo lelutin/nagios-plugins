@@ -28,6 +28,12 @@
 # This plugin is released under the GPL v3+ license. To get a copy of the
 # license text visit: https://www.gnu.org/licenses/gpl-3.0.txt
 #
+STATE_OK=0
+STATE_WARNING=1
+STATE_CRITICAL=2
+STATE_UNKNOWN=3
+STATE_DEPENDENT=4
+
 SECS_IN_DAY=86400
 
 function debug () {
@@ -48,11 +54,11 @@ for arg in $*; do
         "-w")
             if [ -z "$2" ]; then
                 echo "UNKNOWN: argument -w got no value. integer needed"
-                exit 3
+                exit $STATE_UNKNOWN
             fi
             if [ "`echo $2 | egrep ^[[:digit:]]+$`" = "" ]; then
                 echo "UNKNOWN: invalid value '$2' passed to -w. integer needed"
-                exit 3
+                exit $STATE_UNKNOWN
             fi
             warning_threshold=$(( $now + ($2*$SECS_IN_DAY) ))
             debug "setting warning_threshold to '$warning_threshold'"
@@ -62,11 +68,11 @@ for arg in $*; do
         "--gnupg-homedir")
             if [ -z "$2" ]; then
                 echo "UNKNOWN: argument --gnupg-homedir got no value. path needed"
-                exit 3
+                exit $STATE_UNKNOWN
             fi
             if [ ! -d "$2" ]; then
                 echo "UNKNOWN: homedir '$2' does not exist or is not a directory"
-                exit 3
+                exit $STATE_UNKNOWN
             fi
             homedir="--homedir $2"
             debug "setting homedir to '$homedir'"
@@ -78,7 +84,7 @@ done
 
 if [ -z "$1" ]; then
     echo "UNKNOWN: must provide a key ID"
-    exit 3
+    exit $STATE_UNKNOWN
 fi
 key="$1"
 
@@ -87,12 +93,12 @@ key="$1"
 output=$( { gpg $homedir --list-key "$key" >/dev/null && gpg $homedir --refresh "$key" >/dev/null; } 2>&1 )
 if [ $? -ne 0 ]; then
     echo "UNKNOWN: $output"
-    exit 3
+    exit $STATE_UNKNOWN
 fi
 
 if [ "$(gpg $homedir --check-sig "$key" | grep "^rev!")" != "" ]; then
     echo "CRITICAL: key '$key' has been revoked!"
-    exit 2
+    exit $STATE_CRITICAL
 fi
 
 for expiry in $(gpg $homedir --with-colons --fixed-list-mode --list-key "$key" 2>/dev/null | awk -F: '/^pub:/{ print $7 }');
@@ -101,12 +107,12 @@ do
 
     if [ "$now" -gt "$expiry" ]; then
         printf "CRITICAL: %s has expired on %s\n" "$key" "$(date -d "$expiry seconds")"
-        exit 2
+        exit $STATE_CRITICAL
     fi;
     if [ -n "$warning_threshold" ] && [ "$warning_threshold" -gt "$expiry" ]; then
         remaining=$(( ($expiry-$now) / $SECS_IN_DAY ))
         printf "WARNING: %s expires in %s days\n" "$key" "$remaining"
-        exit 1
+        exit $STATE_WARNING
     fi
 done
 

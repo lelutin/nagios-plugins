@@ -96,7 +96,7 @@ key="$1"
 
 # GPG is too stupid to error out when asked to refresh a key that's not in the
 # local keyring so we need to perform another call to verify this first.
-output=$( gpg $homedir --list-key -- "$key" >/dev/null 2>&1 )
+output=$( gpg $homedir --list-key -- "$key" 2>&1 >/dev/null )
 if [ $? -ne 0 ]; then
     echo "UNKNOWN: $output"
     exit $STATE_UNKNOWN
@@ -104,7 +104,7 @@ fi
 
 # Refresh key if not disabled
 if [ $refresh -eq 1 ]; then
-    output=$( gpg $homedir --refresh -- "$key" >/dev/null; 2>&1 )
+    output=$( gpg $homedir --refresh -- "$key" 2>&1 >/dev/null )
     if [ $? -ne 0 ]; then
         echo "UNKNOWN: $output"
         exit $STATE_UNKNOWN

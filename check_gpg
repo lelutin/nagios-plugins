@@ -43,6 +43,10 @@ function debug () {
   fi
 }
 
+function showUsage () {
+  echo "Usage: $0 [--no-refresh] [-w <num_days>] [--gnupg-homedir <path>] <key_id>"
+}
+
 debug "got args: $*"
 
 now=$(date +%s)
@@ -56,10 +60,12 @@ for arg in $*; do
         "-w")
             if [ -z "$2" ]; then
                 echo "UNKNOWN: argument -w got no value. integer needed"
+                showUsage
                 exit $STATE_UNKNOWN
             fi
             if [ "`echo $2 | egrep ^[[:digit:]]+$`" = "" ]; then
                 echo "UNKNOWN: invalid value '$2' passed to -w. integer needed"
+                showUsage
                 exit $STATE_UNKNOWN
             fi
             warning_threshold=$(( $now + ($2*$SECS_IN_DAY) ))
@@ -74,10 +80,12 @@ for arg in $*; do
         "--gnupg-homedir")
             if [ -z "$2" ]; then
                 echo "UNKNOWN: argument --gnupg-homedir got no value. path needed"
+                showUsage
                 exit $STATE_UNKNOWN
             fi
             if [ ! -d "$2" ]; then
                 echo "UNKNOWN: homedir '$2' does not exist or is not a directory"
+                showUsage
                 exit $STATE_UNKNOWN
             fi
             homedir="--homedir $2"
@@ -85,11 +93,21 @@ for arg in $*; do
 
             shift 2
         ;;
+        "-h"|"--help")
+            showUsage
+            exit $STATE_OK
+        ;;
+        -*)
+            echo "UNKNOWN: invalid parameter \"$arg\""
+            showUsage
+            exit $STATE_UNKNOWN
+        ;;
     esac
 done
 
 if [ -z "$1" ]; then
     echo "UNKNOWN: must provide a key ID"
+    showUsage
     exit $STATE_UNKNOWN
 fi
 key="$1"

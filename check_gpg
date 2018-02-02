@@ -129,7 +129,7 @@ if [ $refresh -eq 1 ]; then
     fi
 fi
 
-if [ "$(gpg $homedir --check-sig -- "$key" | grep "^rev!")" != "" ]; then
+if [ "$(gpg $homedir --check-sig -- "$key" 2>/dev/null | grep "^rev!")" != "" ]; then
     echo "CRITICAL: key '$key' has been revoked!"
     exit $STATE_CRITICAL
 fi
